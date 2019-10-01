@@ -91,8 +91,7 @@ class ReflexAgent(Agent):
             return float("inf")
 
         score = score - 3 * manhattanDistance(newPos, close_food)
-        if Directions.REVERSE[action] == currentGameState.getPacmanState().getDirection() or action == Directions.STOP:
-            score = score - 5
+
         return score
 
 
@@ -309,33 +308,51 @@ def betterEvaluationFunction(currentGameState # type: pacman.GameState
     DESCRIPTION: <write something here so we know what you did>
   """
     "*** YOUR CODE HERE ***"
-
-    
+    game_score = currentGameState.getScore()
     if currentGameState.isLose():
-        return float("-inf")
-    if currentGameState.isWin():
-        return float("inf")
+        return game_score / 2 if game_score > 0 else game_score * 2
+    elif currentGameState.isWin():
+        return game_score
     foods = currentGameState.getFood().asList()
     ghosts = currentGameState.getGhostPositions()
     man = currentGameState.getPacmanPosition()
 
-    if len(foods) == 1:
-        return util.manhattanDistance(man, foods[0])
-    # [dis, f1, f2] = max((max(([manhattanDistance(food1, food2),
-    #                            food2, food1] for food2 in foods), key=list) for food1 in foods), key=list)
-    food_score = min(manhattanDistance(man, f) for f in foods)
-    ghost_dists = (manhattanDistance(ghost_pos, man) for ghost_pos in ghosts)
+    # eval food info
+    close_food = min(manhattanDistance(man, f) for f in foods)
+    number_food = len(foods)
+    close_food = min(manhattanDistance(man, f) for f in foods)
+    food_score = 0
+    # if close_food < 3:
+    #     food_score = -close_food
+    food_score += 300. / number_food - close_food * 1.2
+
+    # eval ghost
+    ghost_states = currentGameState.getGhostStates()
+    scare_times = [[ghostState.scaredTimer,
+                    manhattanDistance(man, ghostState.getPosition())]
+                   for ghostState in ghost_states]
+    ghost_dists = (dis if time < dis else -100. / dis for time, dis in scare_times)
     close_ghost = min(ghost_dists)
+    ghost_score = 0
 
-    if close_ghost <= 1:
-        return float("-inf")
-    if close_ghost <= 2:
-        return float("-inf") / 2
+    if close_ghost < 0:
+        ghost_score = close_ghost
+    else:
+        if close_ghost == 1:
+            ghost_score += 150
+        if close_ghost == 2:
+            ghost_score += 60
 
-    if close_ghost > 3:
-        close_ghost = 3
-    # state.getScore()
-    return close_ghost * 10 - food_score * 20 + currentGameState.getScore()
+    # ghost_score = 100. / close_ghost if close_ghost <= 2 else 0 - close_ghost
+
+    # eval caps
+    cap_score = 0
+    caps = len(currentGameState.getCapsules())
+    cap_score = 30 / caps if caps != 0 else 40
+
+    rs = food_score + game_score - ghost_score + cap_score
+    # print 'ghost', close_ghost, 300.0/close_ghost, 'food', food_score, 300.0/food_score
+    return rs
 
 
 
